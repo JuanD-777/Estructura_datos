@@ -6,7 +6,7 @@ def agregar_valor (clave:str,valor:str):
     persona.update({clave:valor})
 
 def eliminar() :
-    persona.pop(clave)
+    persona.popitem()
 
 while continuar: 
  print("escoge un opcion")
@@ -24,4 +24,4 @@ while continuar:
         agregar_valor(clave, valor)
         print(f"Diccionario actualizado: {persona}")
  elif opcion == 2:
-     eliminar 
+     eliminar(clave,valor)
