@@ -1,7 +1,10 @@
-numero = 5
+numero = 4
 resultado:int
-def factorial (n:int)->int:
-    for i in range (1,n):
-        resultado= resultado*i
-    return resultado
+
+def factorial(n:int)->int:
+    res:int = 1 
+    for i in range (1,n+1):
+        res = res*i
+    return res
+
 print(factorial(numero))
