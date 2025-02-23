@@ -1,6 +1,6 @@
 def dividir(a, b):
     if b == 0:
-        raise ValueError("No se puede dividir por cero")
+     raise ValueError("No se puede dividir por cero")
     
     signo = -1 if (a < 0) != (b < 0) else 1
     a, b = abs(a), abs(b)
