@@ -25,8 +25,16 @@ class vehiculo:
         
          
     def acelerar(self):
-       pass
-
+       if self.combustible <= 0:
+          return "el vehiculo no puede moverse, no tiene combustible"
+       print ("el vehiculo ha comenzado a moverse.")
+       while self.combustible >0:
+          self.combustible -=5
+          print(f"Nivel de combustible: {self.combustible}")
+       if self.combustible <=10:
+          print("advertencia: nivel de combuustible bajo")
+       if self.combustible ==0:
+          print("el vehiculo se ha detenido por falta de combustible")
     def frenar(self):
        pass
 
@@ -42,11 +50,14 @@ class carro(vehiculo):
 vehiculo1=vehiculo('mazda', 80 , 'generico')
 print(vehiculo1)
 print(vehiculo1.encender())
+vehiculo1.acelerar()
 
 moto1 = moto('ducati', 1 , 'moto')
 print(moto1)
 print(moto1.encender())
+moto1.acelerar()
 
 carro1= carro('bmw', 20 , 'carro')
 print(carro1)
 print(carro1.encender())
+carro1.acelerar()
