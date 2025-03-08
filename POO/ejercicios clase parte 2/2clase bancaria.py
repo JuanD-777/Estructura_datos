@@ -20,6 +20,10 @@ class CuentaBancaria:
     def consultar_saldo(self):
         return self.saldo
 
-cuenta1=CuentaBancaria('titular', 1000, "123456789")
+
+cuenta1 = CuentaBancaria('titular1', 1000, "123456789")
 cuenta1.depositar(500)
-print(cuenta1.consultar_saldo())
+print("Saldo después del depósito:", cuenta1.consultar_saldo())
+cuenta1.retirar(300)
+print("Saldo después del retiro:", cuenta1.consultar_saldo())
+cuenta1.retirar(1500) 
