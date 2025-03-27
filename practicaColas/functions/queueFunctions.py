@@ -10,5 +10,5 @@ def add_queue(ticket: Ticket, ticketTypes: dict) -> None:
     turno = input("Turno: ")
     prioridad = input("Prioridad: ")
     ticket = Ticket(turno, prioridad)
-    ticketController.enqueue(ticket)
+    TicketController.enqueue(ticket)  # Previously in this line the “t” in the TicketController was in lower case.
     print("Ticket añadido a la cola")
