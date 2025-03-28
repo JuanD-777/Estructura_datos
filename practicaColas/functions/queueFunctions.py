@@ -14,18 +14,14 @@ def add_queue(ticket: Ticket, ticketTypes: dict) -> None:
         "otros"
      }
     
-    if ticket.type not in opciones and ticket.type not in ticketTypes:
+    if ticket.type not in opciones:
         print("el Tipo de ticket no válido")
-        return  
+        return 
     if ticket.type not in ticketTypes:
         ticketTypes[ticket.type] = TicketController.enqueue()    
 
     ticketTypes[ticket.type].enqueue(ticket)
     print(f"ticket de tipo '{ticket.type}")
 
-    print("Añadir ticket a la cola")
-    turno = input("Turno: ")
-    prioridad = input("Prioridad: ")
-    ticket = Ticket(turno, prioridad)
-    TicketController.enqueue(ticket)  # Previously in this line the “t” in the TicketController was in lower case.
-    print("Ticket añadido a la cola")
+print("añadir a la cola") 
+print("ticket añadido a la cola")

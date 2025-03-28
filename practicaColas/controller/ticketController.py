@@ -6,7 +6,7 @@ class TicketController:
         self.head = None
     
     def is_empty(self) -> bool:
-        return self.head is None # aqui se cambio el == a is
+        return self.head == None 
     
     def enqueue(self, ticket: Ticket) -> None:
         if ticket.priority_attention is None:
@@ -21,10 +21,10 @@ class TicketController:
                 node.next = current
                 self.head = node
             else:
-                while current.next is not None and current.next. priority_attention <= node. priority_attention:
+                while current.next is not None and current.next.priority > node.priority:
                     current = current.next
                 node.next = current.next
-                current.next = node
+                current.next = node     
 
     def dequeue(self) -> Ticket:
         if self.is_empty():
