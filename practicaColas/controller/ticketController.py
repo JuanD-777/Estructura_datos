@@ -9,7 +9,7 @@ class TicketController:
         return self.head == None 
     
     def enqueue(self, ticket: Ticket) -> None:
-        if ticket.priority_attention is None:
+        if ticket.priority_attention is None or ticket.priority_attention is False:
             ticket.priority_attention = ticket.age >= 60
 
         node = Node(ticket, ticket.priority_attention)
@@ -21,7 +21,7 @@ class TicketController:
                 node.next = current
                 self.head = node
             else:
-                while current.next is not None and current.next.priority > node.priority:
+                while current.next is not None and current.next.priority >= node.priority:
                     current = current.next
                 node.next = current.next
                 current.next = node     
