@@ -59,11 +59,11 @@ class TableHash:
     
 directory = TableHash()
 directory.add("Juan", "12345678")
-directory.add("Pedro", "31231231")
+directory.add("Pedro", "12345678")
 directory.add("Carlos", "13131221")
 
 print(directory.search("Juan"))  # Debería imprimir "12345678"
-  
+print(directory._hash("Juan"))  # Debería imprimir "0"
 
 directory.delete("Pedro")  
 print(directory.search("Pedro"))  # Debería imprimir "None"
