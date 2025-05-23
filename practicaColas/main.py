@@ -7,61 +7,58 @@ from functions import add_queue
 app = FastAPI()
 
 ticketTypes = {
-    "dudas": TicketController(),
-    "asesor": TicketController(),
-    "caja": TicketController(),
-    "otros": TicketController()
+    "questions": TicketController(),
+    "advisor": TicketController(),
+    "cashier": TicketController(),
+    "others": TicketController()
 }
 
-# Endpoint para crear un turno
+# Endpoint to create a turn
 @app.post("/ticketCreate")
-def crear_turno(turno: Ticket):
-    add_queue(turno, ticketTypes)
-    return {"mensaje": "Turno creado correctamente", "datos_turno": turno}
+def create_turn(turn: Ticket):
+    add_queue(turn, ticketTypes)
+    return {"message": "Turn created successfully", "turn_data": turn}
 
-# un Endpoint nuevo para consultar el siguiente turno sin eliminarlo
+# Endpoint to check the next turn without removing it
 @app.get("/ticketPeek")
-def consultar_siguiente_turno(tipo: str):
-    if tipo in ticketTypes:
-        siguiente_turno = ticketTypes[tipo].peek()
-        if siguiente_turno:
-            return {"mensaje": "El siguiente turno es", "datos_turno":siguiente_turno}
+def peek_next_turn(type: str):
+    if type in ticketTypes:
+        next_turn = ticketTypes[type].peek()
+        if next_turn:
+            return {"message": "The next turn is", "turn_data": next_turn}
         else:
-            return {"mensaje": "No hay turnos en la cola"}
-        
-    return {"mensaje": "Tipo de turno no valido"}
+            return {"message": "No turns in queue"}
+    return {"message": "Invalid turn type"}
 
-
-
-# Endpoint para obtener el siguiente turno
+# Endpoint to get the next turn
 @app.get("/ticketNext")
-def obtener_siguiente_turno(tipo: str):
-    if tipo in ticketTypes:
-        siguiente_turno = ticketTypes[tipo].dequeue()
-        if siguiente_turno:
-            return {"mensaje": "El siguiente turno es", "datos_turno": siguiente_turno}
+def get_next_turn(type: str):
+    if type in ticketTypes:
+        next_turn = ticketTypes[type].dequeue()
+        if next_turn:
+            return {"message": "The next turn is", "turn_data": next_turn}
         else:
-            return {"mensaje": "No hay turnos en la cola"}
-    return {"mensaje": "Tipo de turno no válido"}
+            return {"message": "No turns in queue"}
+    return {"message": "Invalid turn type"}
 
-# Endpoint para listar los turnos en cola por el tipo de turno
+# Endpoint to list turns in queue by turn type
 @app.get("/ticketList")
-def listar_turnos_cola(tipo: str):
-    if tipo in ticketTypes:
-        turnos = []
-        current = ticketTypes[tipo].head
+def list_queue_turns(type: str):
+    if type in ticketTypes:
+        turns = []
+        current = ticketTypes[type].head
         while current:
-            turnos.append(current.data)
+            turns.append(current.data)
             current = current.next
 
-        if turnos:
-            return {"mensaje": "Lista de turnos pendientes", "datos_turnos": turnos}
+        if turns:
+            return {"message": "List of pending turns", "turn_data": turns}
         else:
-            return {"mensaje": "No hay turnos pendientes"}
+            return {"message": "No pending turns"}
     
-    return {"mensaje": "Tipo de turno no válido"}
+    return {"message": "Invalid turn type"}
 
-# Otros endpoints existentes
+# Other existing endpoints
 @app.get("/")
 def read_root():
     return {"Hello": "World"}
@@ -69,4 +66,3 @@ def read_root():
 @app.get("/items/{item_id}")
 def read_item(item_id: int, q: Union[str, None] = None):
     return {"item_id": item_id, "q": q}
-
