@@ -8,20 +8,19 @@ def add_queue(ticket: Ticket, ticketTypes: dict) -> None:
     you need order the tickets by type and priority. (dudas, asesor, caja, otros)
     """
     opciones = {
-        "dudas", 
-        "asesor",
-        "caja",
-        "otros"
+       "questions", 
+        "advisor",
+        "cashier",
+        "others"
+
      }
     
     if ticket.type not in opciones:
-        print("el Tipo de ticket no válido")
+        print("Invalid ticket type")
         return 
     if ticket.type not in ticketTypes:
-        ticketTypes[ticket.type] = TicketController.enqueue()    
+        ticketTypes[ticket.type] = TicketController()   
 
     ticketTypes[ticket.type].enqueue(ticket)
-    print(f"ticket de tipo '{ticket.type}")
+    print(f"Ticket of type '{ticket.type}' added to queue")
 
-print("añadir a la cola") 
-print("ticket añadido a la cola")
