@@ -43,6 +43,6 @@ class TicketController:
     def print_queue(self) -> None:
         current = self.head
         while current is not None: # Ajustado para usar el "is not None"
-            print(f"Turno: {current.data.turno}, Prioridad: {current.priority}")
+            print(f"Turn: {current.data.turn}, Priority: {current.priority}")
             current = current.next
-        print("Fin de la cola")
+        print("End of queue")
