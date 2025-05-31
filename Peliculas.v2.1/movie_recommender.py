@@ -12,120 +12,185 @@ sns.set_theme(style="darkgrid")
 
 class MovieRecommender:
     def __init__(self, csv_path='tmdb_movies.csv'):
-        # Cargar datos de películas (en una aplicación real, estos datos vendrían de una base de datos)
-        self.movies_df = self.load_movie_data(csv_path='tmdb_movies.csv')
+        # Cargar datos de películas
+        self.movies_df = self.load_movie_data(csv_path)
         # Crear matriz de características para el modelo
         self.tfidf_matrix, self.tfidf_features = self.create_feature_matrix()
         # Calcular matriz de similitud
         self.similarity_matrix = cosine_similarity(self.tfidf_matrix)
         
     def load_movie_data(self, csv_path):
-        # Crear un DataFrame de ejemplo con películas
         """
-        cargar los datos de peliculas desde el archivo csv
+        Cargar los datos de películas desde el archivo CSV
         """
         try:
-            
-            #verifica si el archivo existe
+            # Verificar si el archivo existe
             if not os.path.exists(csv_path):
-                print(f"el archivo {csv_path} no existe")
-                print("utilizando datos como ejemplo")
+                print(f"El archivo {csv_path} no existe")
+                print("Utilizando datos de ejemplo")
                 return self.create_example_data()
-        #se carga el csv
-            df=pd.read_csv(csv_path)
             
-            #con esto se procesan las columnas de categorias y plataformas
-            if 'categories' in df.columns and not isinstance(df['categories'].iloc[0], list):
-                df['categories'] = df['categories'].apply(lambda x: x.split(',') if isinstance(x,str)else [])
+            # Cargar el CSV
+            df = pd.read_csv(csv_path)
+            print(f"CSV cargado exitosamente: {len(df)} filas")
+            
+            # Procesar las columnas de categorías y plataformas
+            if 'categories' in df.columns:
+                if not isinstance(df['categories'].iloc[0], list):
+                    df['categories'] = df['categories'].apply(
+                        lambda x: x.split(',') if isinstance(x, str) and pd.notna(x) else []
+                    )
+            else:
+                # Si no existe la columna, usar géneros o crear una por defecto
+                if 'genres' in df.columns:
+                    df['categories'] = df['genres'].apply(
+                        lambda x: x.split(',') if isinstance(x, str) and pd.notna(x) else ['Sin categoría']
+                    )
+                else:
+                    df['categories'] = [['Sin categoría']] * len(df)
         
-            if 'platforms' in df.columns and not isinstance(df['platforms'].iloc[0], list):
-                df['platforms'] = df['platforms'].apply(lambda x: x.split(',') if isinstance(x, str) else [])
+            if 'platforms' in df.columns:
+                if not isinstance(df['platforms'].iloc[0], list):
+                    df['platforms'] = df['platforms'].apply(
+                        lambda x: x.split(',') if isinstance(x, str) and pd.notna(x) else ['Desconocida']
+                    )
+            else:
+                # Si no existe la columna platforms, crear una por defecto
+                df['platforms'] = [['Netflix']] * len(df)
                 
-        # aqui se convierten las categorias y plataformas a strings para realizar el procesamiento del texto
-            df['categories_str'] = df['categories'].apply(lambda x: ' '.join(x) if isinstance(x, list) else '')
-            df['platforms_str'] = df['platforms'].apply(lambda x: ' '.join(x) if isinstance(x, list) else '')
+            # Verificar si existe columna de descripción
+            if 'description' not in df.columns:
+                if 'overview' in df.columns:
+                    df['description'] = df['overview']
+                else:
+                    df['description'] = 'Sin descripción disponible'
+                    
+            # Verificar si existe columna de título
+            if 'title' not in df.columns:
+                if 'original_title' in df.columns:
+                    df['title'] = df['original_title']
+                else:
+                    df['title'] = 'Título desconocido'
+                    
+            # Verificar si existe columna de año
+            if 'year' not in df.columns:
+                if 'release_date' in df.columns:
+                    df['year'] = pd.to_datetime(df['release_date'], errors='coerce').dt.year
+                else:
+                    df['year'] = 2000  # Año por defecto
+                    
+            # Buscar columna de rating
+            rating_column = self.find_rating_column(df)
+            if rating_column and rating_column != 'rating':
+                df['rating'] = df[rating_column]
+            elif 'rating' not in df.columns:
+                df['rating'] = 7.0  # Rating por defecto
         
-        #crear una columna de caracteristicas combinadas para el modelo
-            df['features'] = df['categories_str'] + ' ' + df['description']
+            # Convertir las categorías y plataformas a strings para el procesamiento de texto
+            df['categories_str'] = df['categories'].apply(
+                lambda x: ' '.join(x) if isinstance(x, list) else ''
+            )
+            df['platforms_str'] = df['platforms'].apply(
+                lambda x: ' '.join(x) if isinstance(x, list) else ''
+            )
+        
+            # Crear una columna de características combinadas para el modelo
+            df['features'] = df['categories_str'] + ' ' + df['description'].astype(str)
+            
             return df
         
         except Exception as e:
-            print(f"Error al cargar el archivo csv: {e}")
-            print("utilizando datos como ejemplo ...")
+            print(f"Error al cargar el archivo CSV: {e}")
+            print("Utilizando datos de ejemplo...")
             return self.create_example_data()
+    
+    def find_rating_column(self, df):
+        """Encontrar la columna de rating en el DataFrame"""
+        possible_names = ['rating', 'vote_average', 'imdb_rating', 'score', 'user_rating', 'tmdb_rating']
+        
+        # Buscar nombres exactos
+        for name in possible_names:
+            if name in df.columns:
+                return name
+        
+        # Buscar por patrones en nombres de columnas
+        for col in df.columns:
+            if any(pattern in col.lower() for pattern in ['rating', 'vote', 'score']):
+                return col
+        
+        return None
         
     def create_example_data(self):
         """
         Crear un DataFrame de ejemplo con películas
         """
-    
-        data0 ={
-         'id': range(1, 13),
-          'title': [
-            'Matrix', 'Inception', 'Interstellar', 'The Dark Knight',
-            'Pulp Fiction', 'The Godfather', 'Forrest Gump', 'Gladiator',
-            'The Shawshank Redemption', 'Fight Club', 'The Social Network', 
-            'The Avengers'
-         ],
-         'description': [
-            'Un hacker descubre la verdad sobre su realidad.',
-            'Un ladrón especializado en el robo de secretos.',
-            'Un viaje a través del tiempo y el espacio.',
-            'El caballero oscuro lucha contra el crimen en Gotham.',
-            'Una historia de crimen y redención.',
-            'La historia de una familia mafiosa.',
-            'La vida de un hombre con un pasado extraordinario.',
-            'Un general romano busca venganza.',
-            'La esperanza y la amistad en una prisión.',
-            'Un hombre lucha contra su propia mente.',
-            'La creación de una red social revolucionaria.',
-            'Los héroes se unen para salvar el mundo.'
-         ],
-         'categories': [
-            ['Ciencia Ficción', 'Acción'],
-            ['Ciencia Ficción', 'Acción'], 
-            ['Ciencia Ficción', 'Drama'],
-            ['Acción', 'Crimen'], 
-            ['Crimen', 'Drama'],
-            ['Drama', 'Crimen'], 
-            ['Drama', 'Romance'],
-            ['Acción', 'Drama'],
-            ['Drama', 'Crimen'], 
-            ['Drama', 'Acción'],
-            ['Drama', 'Biografía'], 
-            ['Acción', 'Aventura']
-         ],
-         'raiting': [8.7, 8.8, 8.6, 9.0, 8.9, 9.2, 8.8, 8.5, 9.3, 8.7, 7.7, 8.0],
-         'platforms': [
-            ['Netflix', 'HBO'], 
-            ['Amazon Prime', 'Netflix'], 
-            ['Disney+', 'Netflix'],
-            ['HBO', 'Amazon Prime'], 
-            ['Netflix', 'Hulu'],
-            ['HBO', 'Disney+'], 
-            ['Netflix', 'Amazon Prime'],
-            ['HBO', 'Disney+'],
-            ['Netflix', 'Hulu'], 
-            ['Amazon Prime', 'Netflix'],
-            ['Disney+', 'HBO'], 
-            ['Netflix', 'Amazon Prime']
-         ],
-         'year': [1999, 2010, 2014, 2008, 1994, 1972, 1994, 2000, 1994, 1999, 2010, 2012],
+        
+        data = {
+            'id': range(1, 13),
+            'title': [
+                'Matrix', 'Inception', 'Interstellar', 'The Dark Knight',
+                'Pulp Fiction', 'The Godfather', 'Forrest Gump', 'Gladiator',
+                'The Shawshank Redemption', 'Fight Club', 'The Social Network', 
+                'The Avengers'
+            ],
+            'description': [
+                'Un hacker descubre la verdad sobre su realidad.',
+                'Un ladrón especializado en el robo de secretos.',
+                'Un viaje a través del tiempo y el espacio.',
+                'El caballero oscuro lucha contra el crimen en Gotham.',
+                'Una historia de crimen y redención.',
+                'La historia de una familia mafiosa.',
+                'La vida de un hombre con un pasado extraordinario.',
+                'Un general romano busca venganza.',
+                'La esperanza y la amistad en una prisión.',
+                'Un hombre lucha contra su propia mente.',
+                'La creación de una red social revolucionaria.',
+                'Los héroes se unen para salvar el mundo.'
+            ],
+            'categories': [
+                ['Ciencia Ficción', 'Acción'],
+                ['Ciencia Ficción', 'Acción'], 
+                ['Ciencia Ficción', 'Drama'],
+                ['Acción', 'Crimen'], 
+                ['Crimen', 'Drama'],
+                ['Drama', 'Crimen'], 
+                ['Drama', 'Romance'],
+                ['Acción', 'Drama'],
+                ['Drama', 'Crimen'], 
+                ['Drama', 'Acción'],
+                ['Drama', 'Biografía'], 
+                ['Acción', 'Aventura']
+            ],
+            'rating': [8.7, 8.8, 8.6, 9.0, 8.9, 9.2, 8.8, 8.5, 9.3, 8.7, 7.7, 8.0],
+            'platforms': [
+                ['Netflix', 'HBO'], 
+                ['Amazon Prime', 'Netflix'], 
+                ['Disney+', 'Netflix'],
+                ['HBO', 'Amazon Prime'], 
+                ['Netflix', 'Hulu'],
+                ['HBO', 'Disney+'], 
+                ['Netflix', 'Amazon Prime'],
+                ['HBO', 'Disney+'],
+                ['Netflix', 'Hulu'], 
+                ['Amazon Prime', 'Netflix'],
+                ['Disney+', 'HBO'], 
+                ['Netflix', 'Amazon Prime']
+            ],
+            'year': [1999, 2010, 2014, 2008, 1994, 1972, 1994, 2000, 1994, 1999, 2010, 2012],
         }
-    
-        df= pd.DataFrame(data0)
-    
-    #convertir las columnas de categorias y plataformas a listas
+        
+        df = pd.DataFrame(data)
+        
+        # Convertir las columnas de categorías y plataformas a strings
         df['categories_str'] = df['categories'].apply(lambda x: ' '.join(x))
         df['platforms_str'] = df['platforms'].apply(lambda x: ' '.join(x))
-    
-    #se crea una columna de caracteristicas combinadas para el modelo
-    
-        df['features']=df['categories_str']+''+df['description']
+        
+        # Crear una columna de características combinadas para el modelo
+        df['features'] = df['categories_str'] + ' ' + df['description']
         return df
     
     def create_feature_matrix(self):
-        # Crear una matriz TF-IDF para las características de las películas
+        """Crear una matriz TF-IDF para las características de las películas"""
         tfidf = TfidfVectorizer(stop_words='english')
         tfidf_matrix = tfidf.fit_transform(self.movies_df['features'])
         
@@ -138,8 +203,8 @@ class MovieRecommender:
         # Encontrar el índice de la película en el DataFrame
         try:
             idx = self.movies_df[self.movies_df['title'] == movie_title].index[0]
-        except:
-            return "Película no encontrada. Por favor, verifica el título."
+        except IndexError:
+            return pd.DataFrame()  # Retornar DataFrame vacío si no se encuentra
         
         # Obtener puntuaciones de similitud para todas las películas
         similarity_scores = list(enumerate(self.similarity_matrix[idx]))
@@ -158,10 +223,10 @@ class MovieRecommender:
         Obtener recomendaciones basadas en una categoría
         """
         # Filtrar películas que contienen la categoría
-        category_movies = self.movies_df[self.movies_df['categories_str'].str.contains(category, case=False)]
+        category_movies = self.movies_df[self.movies_df['categories_str'].str.contains(category, case=False, na=False)]
         
         if category_movies.empty:
-            return "Categoría no encontrada. Las categorías disponibles son: " + ", ".join(self.get_all_categories())
+            return pd.DataFrame()  # Retornar DataFrame vacío
         
         # Ordenar por calificación
         return category_movies.sort_values('rating', ascending=False).head(n)
@@ -171,10 +236,10 @@ class MovieRecommender:
         Obtener recomendaciones disponibles en una plataforma específica
         """
         # Filtrar películas disponibles en la plataforma
-        platform_movies = self.movies_df[self.movies_df['platforms_str'].str.contains(platform, case=False)]
+        platform_movies = self.movies_df[self.movies_df['platforms_str'].str.contains(platform, case=False, na=False)]
         
         if platform_movies.empty:
-            return "Plataforma no encontrada. Las plataformas disponibles son: " + ", ".join(self.get_all_platforms())
+            return pd.DataFrame()  # Retornar DataFrame vacío
         
         # Ordenar por calificación
         return platform_movies.sort_values('rating', ascending=False).head(n)
@@ -185,7 +250,8 @@ class MovieRecommender:
         """
         all_categories = []
         for categories in self.movies_df['categories']:
-            all_categories.extend(categories)
+            if isinstance(categories, list):
+                all_categories.extend(categories)
         return sorted(list(set(all_categories)))
     
     def get_all_platforms(self):
@@ -194,7 +260,8 @@ class MovieRecommender:
         """
         all_platforms = []
         for platforms in self.movies_df['platforms']:
-            all_platforms.extend(platforms)
+            if isinstance(platforms, list):
+                all_platforms.extend(platforms)
         return sorted(list(set(all_platforms)))
     
     def visualize_category_distribution(self):
@@ -204,11 +271,12 @@ class MovieRecommender:
         # Contar la frecuencia de cada categoría
         category_counts = {}
         for categories in self.movies_df['categories']:
-            for category in categories:
-                if category in category_counts:
-                    category_counts[category] += 1
-                else:
-                    category_counts[category] = 1
+            if isinstance(categories, list):
+                for category in categories:
+                    if category in category_counts:
+                        category_counts[category] += 1
+                    else:
+                        category_counts[category] = 1
         
         # Ordenar por frecuencia
         sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
@@ -238,11 +306,12 @@ class MovieRecommender:
         # Contar la frecuencia de cada plataforma
         platform_counts = {}
         for platforms in self.movies_df['platforms']:
-            for platform in platforms:
-                if platform in platform_counts:
-                    platform_counts[platform] += 1
-                else:
-                    platform_counts[platform] = 1
+            if isinstance(platforms, list):
+                for platform in platforms:
+                    if platform in platform_counts:
+                        platform_counts[platform] += 1
+                    else:
+                        platform_counts[platform] = 1
         
         # Ordenar por frecuencia
         sorted_platforms = sorted(platform_counts.items(), key=lambda x: x[1], reverse=True)
@@ -264,8 +333,8 @@ class MovieRecommender:
         print(f"\n{'=' * 50}")
         print(f"Título: {movie_row['title']}")
         print(f"Año: {movie_row['year']}")
-        print(f"Categorías: {', '.join(movie_row['categories'])}")
-        print(f"Plataformas: {', '.join(movie_row['platforms'])}")
+        print(f"Categorías: {', '.join(movie_row['categories']) if isinstance(movie_row['categories'], list) else movie_row['categories']}")
+        print(f"Plataformas: {', '.join(movie_row['platforms']) if isinstance(movie_row['platforms'], list) else movie_row['platforms']}")
         print(f"Calificación: {movie_row['rating']}/10")
         print(f"Descripción: {movie_row['description']}")
         print(f"{'=' * 50}\n")

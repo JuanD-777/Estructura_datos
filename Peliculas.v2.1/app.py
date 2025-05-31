@@ -59,36 +59,41 @@ st.markdown("### Encuentra tu próxima película favorita con IA")
 # Inicializar el recomendador
 @st.cache_resource
 def get_recommender():
-    csv_path= 'tmdb_movies.csv'
+    csv_path = 'tmdb_movies.csv'
     if os.path.exists(csv_path):
         return MovieRecommender(csv_path)
     else:
-        st.warning("el archivo csv: 'tmdb_movies' no existe , usando datos de ejemplo")
-    return MovieRecommender()
+        st.warning("El archivo CSV 'tmdb_movies.csv' no existe. Usando datos de ejemplo.")
+        return MovieRecommender()
 
-#carga/sube los archivos csv
+# Cargar/subir archivos CSV
 with st.sidebar:
-    st.header("configuración")
-    uploaded_file = st.file_uploader("sube un archivo csv", type=["csv"])
+    st.header("Configuración")
+    uploaded_file = st.file_uploader("Sube un archivo CSV", type=["csv"])
 
+# Variable para el recomendador
 if uploaded_file is not None:
     # Guardar el archivo subido en la carpeta actual
     with open("tmdb_movies.csv", "wb") as f:
         f.write(uploaded_file.getbuffer())
-    st.success("Archivo subido correctamente!")
-
-  #reiniciar el recomendador con un nuevo csv
-    recommender = MovieRecommender("tmdb_movies.csv")
+    st.success("¡Archivo subido correctamente!")
+    
+    # Reiniciar el recomendador con el nuevo CSV
+    try:
+        recommender = MovieRecommender("tmdb_movies.csv")
+        st.success(f"CSV procesado: {len(recommender.movies_df)} películas cargadas")
+    except Exception as e:
+        st.error(f"Error al procesar el CSV: {e}")
+        recommender = get_recommender()
 else:
     recommender = get_recommender()
-    
-    
+
 # Sidebar para navegación
 st.sidebar.title("Navegación")
 page = st.sidebar.radio(
     "Selecciona una opción:",
     ["Inicio", "Recomendación por Película", "Recomendación por Categoría", 
-     "Recomendación por Plataforma", "Visualizaciones", "ver Datos"]
+     "Recomendación por Plataforma", "Visualizaciones", "Ver Datos"]
 )
 
 # Página de inicio
@@ -105,7 +110,7 @@ if page == "Inicio":
     - **Filtrado por categorías**: Descubre las mejores películas de tu género preferido
     - **Filtrado por plataformas**: Encuentra qué ver en tus servicios de streaming
     - **Visualizaciones**: Explora la distribución de películas por categoría y plataforma
-     - **Carga de datos CSV**: Puedes personalizar el sistema con tu propia base de datos de películas
+    - **Carga de datos CSV**: Puedes personalizar el sistema con tu propia base de datos de películas
     
     Usa el menú de navegación para explorar las diferentes funcionalidades.
     """)
@@ -118,7 +123,7 @@ if page == "Inicio":
     with col2:
         st.info(f"📺 Plataformas disponibles: {len(recommender.get_all_platforms())}")
         
-        # SOLUCIÓN AL ERROR: Buscar la columna de rating correcta
+        # Buscar la columna de rating correcta
         rating_col = find_rating_column(recommender.movies_df)
         if rating_col:
             avg_rating = recommender.movies_df[rating_col].mean()
@@ -131,241 +136,153 @@ elif page == "Recomendación por Película":
     st.header("Recomendación basada en una película")
     st.markdown("Selecciona una película que te guste y te recomendaremos películas similares.")
     
-    # Selector de película
-    movie_title = st.selectbox(
-        "Selecciona una película:",
-        options=recommender.movies_df['title'].tolist()
-    )
-    
-    #numero de las recomendaciones
-    num_recommendations = st.slider("numero de recomendaciones", 1, 10, 5)
-    
-    if st.button("Obtener Recomendaciones"):
-        # Obtener recomendaciones
-        recommendations = recommender.get_movie_recommendations(movie_title)
+    # Verificar que hay películas disponibles
+    if len(recommender.movies_df) == 0:
+        st.error("No hay películas disponibles. Por favor, carga un archivo CSV.")
+    else:
+        # Selector de película
+        movie_title = st.selectbox(
+            "Selecciona una película:",
+            options=recommender.movies_df['title'].tolist()
+        )
         
-        # Mostrar la película seleccionada
-        st.subheader("Película seleccionada:")
-        selected_movie = recommender.movies_df[recommender.movies_df['title'] == movie_title].iloc[0]
+        # Número de recomendaciones
+        num_recommendations = st.slider("Número de recomendaciones", 1, 10, 5)
         
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.image("https://via.placeholder.com/300x450?text=Movie+Poster", caption=selected_movie['title'])
-        with col2:
-            st.markdown(f"**Título:** {selected_movie['title']}")
-            st.markdown(f"**Año:** {selected_movie['year']}")
-            st.markdown(f"**Categorías:** {', '.join(selected_movie['categories'])}")
-            st.markdown(f"**Plataformas:** {', '.join(selected_movie['platforms'])}")
+        if st.button("Obtener Recomendaciones"):
+            # Obtener recomendaciones
+            recommendations = recommender.get_movie_recommendations(movie_title, num_recommendations)
             
-            # Mostrar rating usando la columna correcta
-            rating_col = find_rating_column(recommender.movies_df)
-            if rating_col:
-                st.markdown(f"**Calificación:** {selected_movie[rating_col]}/10")
+            if recommendations.empty:
+                st.error("No se pudieron encontrar recomendaciones para esta película.")
             else:
-                st.markdown("**Calificación:** No disponible")
+                # Mostrar la película seleccionada
+                st.subheader("Película seleccionada:")
+                selected_movie = recommender.movies_df[recommender.movies_df['title'] == movie_title].iloc[0]
                 
-            st.markdown(f"**Descripción:** {selected_movie['description']}")
-        
-        # Mostrar recomendaciones
-        st.subheader("Películas recomendadas:")
-        
-        # Crear columnas para las recomendaciones
-        num_rows = (len(recommendations) + 2) // 3
-        for row in range(num_rows):
-            cols = st.columns(3)
-            for col_idx in range(3):
-                movie_idx = row * 3 + col_idx
-                if movie_idx < len(recommendations):
-                    movie = recommendations.iloc[movie_idx]
-                    with cols[col_idx]:
-                      st.image("https://via.placeholder.com/150x225?text=Movie+Poster", caption=movie['title'])
-                      st.markdown(f"**Categorías:** {', '.join(movie['categories'])}")
-                      st.markdown(f"**Plataformas:** {', '.join(movie['platforms'])}")
-                      
-                      # Mostrar rating usando la columna correcta
-                      rating_col = find_rating_column(recommender.movies_df)
-                      if rating_col:
-                          st.markdown(f"**Calificación:** {movie[rating_col]}/10")
-                      else:
-                          st.markdown("**Calificación:** No disponible")
+                col1, col2 = st.columns([1, 2])
+                with col1:
+                    st.image("https://via.placeholder.com/300x450?text=Poster+Pelicula", caption=selected_movie['title'])
+                with col2:
+                    st.markdown(f"**Título:** {selected_movie['title']}")
+                    st.markdown(f"**Año:** {selected_movie['year']}")
+                    
+                    # Mostrar categorías de forma segura
+                    if isinstance(selected_movie['categories'], list):
+                        st.markdown(f"**Categorías:** {', '.join(selected_movie['categories'])}")
+                    else:
+                        st.markdown(f"**Categorías:** {selected_movie['categories']}")
+                    
+                    # Mostrar plataformas de forma segura
+                    if isinstance(selected_movie['platforms'], list):
+                        st.markdown(f"**Plataformas:** {', '.join(selected_movie['platforms'])}")
+                    else:
+                        st.markdown(f"**Plataformas:** {selected_movie['platforms']}")
+                    
+                    # Mostrar rating
+                    rating_col = find_rating_column(recommender.movies_df)
+                    if rating_col:
+                        st.markdown(f"**Calificación:** {selected_movie[rating_col]}/10")
+                    else:
+                        st.markdown("**Calificación:** No disponible")
+                        
+                    st.markdown(f"**Descripción:** {selected_movie['description']}")
+                
+                # Mostrar recomendaciones
+                st.subheader("Películas recomendadas:")
+                
+                # Crear columnas para las recomendaciones
+                num_rows = (len(recommendations) + 2) // 3
+                for row in range(num_rows):
+                    cols = st.columns(3)
+                    for col_idx in range(3):
+                        movie_idx = row * 3 + col_idx
+                        if movie_idx < len(recommendations):
+                            movie = recommendations.iloc[movie_idx]
+                            with cols[col_idx]:
+                                st.image("https://via.placeholder.com/150x225?text=Poster+Pelicula", caption=movie['title'])
+                                
+                                # Mostrar categorías de forma segura
+                                if isinstance(movie['categories'], list):
+                                    st.markdown(f"**Categorías:** {', '.join(movie['categories'])}")
+                                else:
+                                    st.markdown(f"**Categorías:** {movie['categories']}")
+                                
+                                # Mostrar plataformas de forma segura
+                                if isinstance(movie['platforms'], list):
+                                    st.markdown(f"**Plataformas:** {', '.join(movie['platforms'])}")
+                                else:
+                                    st.markdown(f"**Plataformas:** {movie['platforms']}")
+                                
+                                # Mostrar rating
+                                rating_col = find_rating_column(recommender.movies_df)
+                                if rating_col:
+                                    st.markdown(f"**Calificación:** {movie[rating_col]}/10")
+                                else:
+                                    st.markdown("**Calificación:** No disponible")
 
 # Página de recomendación por categoría
 elif page == "Recomendación por Categoría":
     st.header("Recomendación por Categoría")
     st.markdown("Encuentra las mejores películas de tu género favorito.")
     
-    # Selector de categoría
-    category = st.selectbox(
-        "Selecciona una categoría:",
-        options=recommender.get_all_categories()
-    )
+    # Obtener categorías disponibles
+    categories = recommender.get_all_categories()
     
-    #num. recomendaciones
-    num_recommendations = st.slider("numero de recomendaciones", 1, 10, 5)
-    
-    
-    # Botón para buscar películas
-    if st.button("Buscar Películas"):
-        # Obtener recomendaciones por categoría
-        category_recommendations = recommender.get_recommendations_by_category(category)
+    if not categories:
+        st.error("No hay categorías disponibles.")
+    else:
+        # Selector de categoría
+        category = st.selectbox(
+            "Selecciona una categoría:",
+            options=categories
+        )
         
-        # Mostrar recomendaciones
-        st.subheader(f"Mejores películas de {category}:")
+        # Número de recomendaciones
+        num_recommendations = st.slider("Número de recomendaciones", 1, 10, 5)
         
-        for _, movie in category_recommendations.iterrows():
-            col1, col2 = st.columns([1, 3])
-            with col1:
-                st.image("https://via.placeholder.com/150x225?text=Movie+Poster", caption=movie['title'])
-            with col2:
-                st.markdown(f"**Título:** {movie['title']}")
-                st.markdown(f"**Año:** {movie['year']}")
-                st.markdown(f"**Categorías:** {', '.join(movie['categories'])}")
-                st.markdown(f"**Plataformas:** {', '.join(movie['platforms'])}")
+        # Botón para buscar películas
+        if st.button("Buscar Películas"):
+            # Obtener recomendaciones por categoría
+            category_recommendations = recommender.get_recommendations_by_category(category, num_recommendations)
+            
+            if category_recommendations.empty:
+                st.error(f"No se encontraron películas para la categoría '{category}'.")
+            else:
+                # Mostrar recomendaciones
+                st.subheader(f"Mejores películas de {category}:")
                 
-                # Mostrar rating usando la columna correcta
-                rating_col = find_rating_column(recommender.movies_df)
-                if rating_col:
-                    st.markdown(f"**Calificación:** {movie[rating_col]}/10")
-                else:
-                    st.markdown("**Calificación:** No disponible")
-                    
-                st.markdown(f"**Descripción:** {movie['description']}")
-            st.markdown("---")
+                for _, movie in category_recommendations.iterrows():
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        st.image("https://via.placeholder.com/150x225?text=Poster+Pelicula", caption=movie['title'])
+                    with col2:
+                        st.markdown(f"**Título:** {movie['title']}")
+                        st.markdown(f"**Año:** {movie['year']}")
+                        
+                        # Mostrar categorías de forma segura
+                        if isinstance(movie['categories'], list):
+                            st.markdown(f"**Categorías:** {', '.join(movie['categories'])}")
+                        else:
+                            st.markdown(f"**Categorías:** {movie['categories']}")
+                        
+                        # Mostrar plataformas de forma segura
+                        if isinstance(movie['platforms'], list):
+                            st.markdown(f"**Plataformas:** {', '.join(movie['platforms'])}")
+                        else:
+                            st.markdown(f"**Plataformas:** {movie['platforms']}")
+                        
+                        # Mostrar rating
+                        rating_col = find_rating_column(recommender.movies_df)
+                        if rating_col:
+                            st.markdown(f"**Calificación:** {movie[rating_col]}/10")
+                        else:
+                            st.markdown("**Calificación:** No disponible")
+                            
+                        st.markdown(f"**Descripción:** {movie['description']}")
+                    st.markdown("---")
 
 # Página de recomendación por plataforma
 elif page == "Recomendación por Plataforma":
     st.header("Recomendación por Plataforma")
     st.markdown("Descubre qué ver en tus servicios de streaming favoritos.")
-    
-    # Selector de plataforma
-    platform = st.selectbox(
-        "Selecciona una plataforma:",
-        options=recommender.get_all_platforms()
-    )
-    
-    if st.button("Buscar Películas"):
-        # Obtener recomendaciones por plataforma
-        platform_recommendations = recommender.get_recommendations_by_platform(platform)
-        
-        # Mostrar recomendaciones
-        st.subheader(f"Mejores películas en {platform}:")
-        
-        for _, movie in platform_recommendations.iterrows():
-            col1, col2 = st.columns([1, 3])
-            with col1:
-                st.image("https://via.placeholder.com/150x225?text=Movie+Poster", caption=movie['title'])
-            with col2:
-                st.markdown(f"**Título:** {movie['title']}")
-                st.markdown(f"**Año:** {movie['year']}")
-                st.markdown(f"**Categorías:** {', '.join(movie['categories'])}")
-                st.markdown(f"**Plataformas:** {', '.join(movie['platforms'])}")
-                
-                # Mostrar rating usando la columna correcta
-                rating_col = find_rating_column(recommender.movies_df)
-                if rating_col:
-                    st.markdown(f"**Calificación:** {movie[rating_col]}/10")
-                else:
-                    st.markdown("**Calificación:** No disponible")
-                    
-                st.markdown(f"**Descripción:** {movie['description']}")
-            st.markdown("---")
-
-# Página de visualizaciones
-elif page == "Visualizaciones":
-    st.header("Visualizaciones")
-    st.markdown("Explora la distribución de películas por categoría y plataforma.")
-    
-    # Visualización de categorías
-    st.subheader("Distribución de Películas por Categoría")
-    
-    # Contar la frecuencia de cada categoría
-    category_counts = {}
-    for categories in recommender.movies_df['categories']:
-        for category in categories:
-            if category in category_counts:
-                category_counts[category] += 1
-            else:
-                category_counts[category] = 1
-    
-    # Ordenar por frecuencia
-    sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
-    categories, counts = zip(*sorted_categories)
-    
-    # Crear gráfico
-    fig1, ax1 = plt.subplots(figsize=(12, 6))
-    bars = ax1.bar(categories, counts, color='skyblue')
-    ax1.set_title('Distribución de Películas por Categoría', fontsize=15)
-    ax1.set_xlabel('Categoría', fontsize=12)
-    ax1.set_ylabel('Número de Películas', fontsize=12)
-    plt.xticks(rotation=45, ha='right')
-    plt.tight_layout()
-    
-    # Añadir etiquetas de valor
-    for bar in bars:
-        height = bar.get_height()
-        ax1.text(bar.get_x() + bar.get_width()/2., height + 0.1,
-                f'{height:.0f}', ha='center', va='bottom')
-    
-    st.pyplot(fig1)
-    
-    # Visualización de plataformas
-    st.subheader("Distribución de Películas por Plataforma")
-    
-    # Contar la frecuencia de cada plataforma
-    platform_counts = {}
-    for platforms in recommender.movies_df['platforms']:
-        for platform in platforms:
-            if platform in platform_counts:
-                platform_counts[platform] += 1
-            else:
-                platform_counts[platform] = 1
-    
-    # Ordenar por frecuencia
-    sorted_platforms = sorted(platform_counts.items(), key=lambda x: x[1], reverse=True)
-    platforms, counts = zip(*sorted_platforms)
-    
-    # Crear gráfico
-    fig2, ax2 = plt.subplots(figsize=(10, 6))
-    ax2.pie(counts, labels=platforms, autopct='%1.1f%%', startangle=90, 
-            shadow=True, explode=[0.05] * len(platforms))
-    ax2.set_title('Distribución de Películas por Plataforma', fontsize=15)
-    ax2.axis('equal')
-    plt.tight_layout()
-    
-    st.pyplot(fig2)
-
-# Página para ver datos (nueva funcionalidad de debug)
-elif page == "ver Datos":
-    st.header("Información del Dataset")
-    st.markdown("Explora la estructura de tus datos.")
-    
-    # Mostrar información básica del DataFrame
-    st.subheader("Información General")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.info(f"Número de filas: {len(recommender.movies_df)}")
-        st.info(f"Número de columnas: {len(recommender.movies_df.columns)}")
-    with col2:
-        rating_col = find_rating_column(recommender.movies_df)
-        if rating_col:
-            st.info(f"Columna de rating encontrada: {rating_col}")
-        else:
-            st.warning("No se encontró columna de rating")
-    
-    # Mostrar columnas disponibles
-    st.subheader("Columnas Disponibles")
-    st.write(list(recommender.movies_df.columns))
-    
-    # Mostrar muestra de datos
-    st.subheader("Muestra de Datos")
-    st.dataframe(recommender.movies_df.head())
-    
-    # Mostrar estadísticas de rating si existe
-    rating_col = find_rating_column(recommender.movies_df)
-    if rating_col:
-        st.subheader(f"Estadísticas de {rating_col}")
-        st.write(recommender.movies_df[rating_col].describe())
-
-# Pie de página
-st.markdown("---")
-st.markdown("Desarrollado con ❤️ usando Python y Machine Learning")
